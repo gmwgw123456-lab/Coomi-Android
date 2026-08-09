@@ -132,7 +132,30 @@ impl CoreTools {
         &self.policy
     }
 
-    async fn dispatch(&self, call: &ToolCall, approval: &dyn ApprovalHandler) -> ToolResult {
+   async fn dispatch(&self, call: &ToolCall, approval: &dyn ApprovalHandler) -> ToolResult {
+
+    let decision = self.assess_tool(call);
+
+    match decision {
+        Decision::Allow => {}
+
+        Decision::Ask(reason) => {
+            if !approval.approve(call, &reason).await {
+                return ToolResult::error(
+                    format!("Tool execution denied: {}", reason)
+                );
+            }
+        }
+
+        Decision::Deny(reason) => {
+            return ToolResult::error(
+                format!("Tool blocked: {}", reason)
+            );
+        }
+    }
+
+
+    match Self::canonical_tool_name(call.name.as_str()) {
         match Self::canonical_tool_name(call.name.as_str()) {
             "read_file" => self.read_file(&call.arguments).await,
             "write_file" => self.write_file(&call.arguments).await,
