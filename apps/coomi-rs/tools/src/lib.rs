@@ -164,7 +164,11 @@ fn assess_tool(&self, call: &ToolCall) -> Decision {
     Decision::Allow
 }
 
-   async fn dispatch(&self, call: &ToolCall, approval: &dyn ApprovalHandler) -> ToolResult {
+async fn dispatch(
+    &self,
+    call: &ToolCall,
+    approval: &dyn ApprovalHandler
+) -> ToolResult {
 
     let decision = self.assess_tool(call);
 
@@ -186,8 +190,7 @@ fn assess_tool(&self, call: &ToolCall) -> Decision {
         }
     }
 
-
-    match Self::canonical_tool_name(call.name.as_str()) {
+match Self::canonical_tool_name(call.name.as_str()) {
             "read_file" => self.read_file(&call.arguments).await,
             "write_file" => self.write_file(&call.arguments).await,
             "edit_file" => self.edit_file(&call.arguments).await,
