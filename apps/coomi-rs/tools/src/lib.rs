@@ -156,7 +156,6 @@ impl CoreTools {
 
 
     match Self::canonical_tool_name(call.name.as_str()) {
-        match Self::canonical_tool_name(call.name.as_str()) {
             "read_file" => self.read_file(&call.arguments).await,
             "write_file" => self.write_file(&call.arguments).await,
             "edit_file" => self.edit_file(&call.arguments).await,
