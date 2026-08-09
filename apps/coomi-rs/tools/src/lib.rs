@@ -131,6 +131,38 @@ impl CoreTools {
     pub fn policy(&self) -> &SecurityPolicy {
         &self.policy
     }
+fn assess_tool(&self, call: &ToolCall) -> Decision {
+    match Self::canonical_tool_name(call.name.as_str()) {
+
+        "read_file" => {
+            if let Some(path) = string_arg(&call.arguments, "path") {
+                return self.policy.assess_read(
+                    PathBuf::from(path).as_path()
+                );
+            }
+        }
+
+        "write_file" | "edit_file" => {
+            if let Some(path) = string_arg(&call.arguments, "path") {
+                return self.policy.assess_write(
+                    PathBuf::from(path).as_path()
+                );
+            }
+        }
+
+        "shell" | "local_shell" => {
+            if let Some(command) =
+                string_arg(&call.arguments, "command")
+            {
+                return self.policy.assess_shell(command);
+            }
+        }
+
+        _ => {}
+    }
+
+    Decision::Allow
+}
 
    async fn dispatch(&self, call: &ToolCall, approval: &dyn ApprovalHandler) -> ToolResult {
 
