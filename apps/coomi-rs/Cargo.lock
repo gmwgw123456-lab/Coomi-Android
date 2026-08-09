@@ -371,6 +371,7 @@ name = "coomi-security"
 version = "2.0.0"
 dependencies = [
  "anyhow",
+ "axum",
  "clap",
  "regex",
  "serde",

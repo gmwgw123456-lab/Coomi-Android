@@ -1,4 +1,5 @@
 mod hooks;
+mod permission;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -11,6 +12,20 @@ use std::path::PathBuf;
 pub use hooks::HookEvent;
 pub use hooks::HookOutcome;
 pub use hooks::HookRunner;
+
+pub use permission::ShellAnalysis;
+pub use permission::ShellAnalyzer;
+
+pub use permission::AuditEntry;
+pub use permission::AuditLogger;
+pub use permission::AuditStats;
+
+pub use permission::ToolPermission;
+pub use permission::ToolRule;
+pub use permission::ToolRuleSet;
+
+pub use permission::PermissionManager;
+pub use permission::KNOWN_TOOLS;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 pub enum AccessMode {
