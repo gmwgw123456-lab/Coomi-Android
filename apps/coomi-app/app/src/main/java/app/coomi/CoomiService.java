@@ -44,15 +44,36 @@ public class CoomiService extends Service {
 
     private static String prefix() { return TermuxConstants.TERMUX_PREFIX_DIR_PATH; }
     private static String home() { return TermuxConstants.TERMUX_HOME_DIR_PATH; }
-    private static String preload() { return prefix() + "/lib/libtermux-exec-ld-preload.so"; }
+    /**
+     * termux-exec 提供的 preload 库文件名随版本变化（termux-exec 1.9 为 libtermux-exec.so，
+     * 更早的 bootstrap 可能是 libtermux-exec-ld-preload.so）。按存在性探测实际文件；
+     * 环境里没有 termux-exec 时返回 null，调用方据此跳过 LD_PRELOAD —— 否则 bionic
+     * 会因 preload 失败而拒绝启动所有二进制（CANNOT LINK EXECUTABLE），
+     * 导致 mkdir / ln 等部署命令全部失败。
+     */
+    private static String preload() {
+        String[] candidates = {
+            prefix() + "/lib/libtermux-exec-ld-preload.so",
+            prefix() + "/lib/libtermux-exec.so",
+        };
+        for (String candidate : candidates) {
+            if (new File(candidate).isFile()) return candidate;
+        }
+        return null;
+    }
 
     private static String termuxEnvironment() {
+        String preloadEnv = "";
+        String preloadLib = preload();
+        if (preloadLib != null) {
+            preloadEnv = " LD_PRELOAD=" + shellQuote(preloadLib);
+        }
         return "export HOME=" + shellQuote(home())
             + " PREFIX=" + shellQuote(prefix())
             + " TMPDIR=" + shellQuote(prefix() + "/tmp")
             + " PATH=" + shellQuote(prefix() + "/bin:/system/bin")
             + " LD_LIBRARY_PATH=" + shellQuote(prefix() + "/lib")
-            + " LD_PRELOAD=" + shellQuote(preload())
+            + preloadEnv
             + " COOMI_HOME=" + shellQuote(CoomiConstants.COOMI_CONFIG_DIR)
             + " COOMI_SHELL=" + shellQuote(prefix() + "/bin/bash")
             + " SSL_CERT_FILE=" + shellQuote(prefix() + "/etc/tls/cert.pem")
