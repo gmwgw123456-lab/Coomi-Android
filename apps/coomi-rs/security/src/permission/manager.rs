@@ -1,5 +1,6 @@
 use anyhow::Result;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use super::audit::{AuditEntry, AuditLogger};
@@ -18,9 +19,19 @@ pub const KNOWN_TOOLS: &[(&str, &str)] = &[
 ];
 
 pub struct PermissionManager {
-    rules: RwLock<ToolRuleSet>,
-    audit: AuditLogger,
+    rules: Arc<RwLock<ToolRuleSet>>,
+    audit: Arc<AuditLogger>,
     config_path: PathBuf,
+}
+
+impl Clone for PermissionManager {
+    fn clone(&self) -> Self {
+        Self {
+            rules: Arc::clone(&self.rules),
+            audit: Arc::clone(&self.audit),
+            config_path: self.config_path.clone(),
+        }
+    }
 }
 
 impl PermissionManager {
@@ -31,8 +42,8 @@ impl PermissionManager {
             .unwrap_or_default();
 
         Self {
-            rules: RwLock::new(rules),
-            audit: AuditLogger::new(&audit_path),
+            rules: Arc::new(RwLock::new(rules)),
+            audit: Arc::new(AuditLogger::new(&audit_path)),
             config_path,
         }
     }

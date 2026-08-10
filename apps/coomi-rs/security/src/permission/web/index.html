@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Permission Manager</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔒 Agent Permission Manager</h1>
+            <p class="subtitle">管理 AI Agent 工具权限</p>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab active" data-tab="permissions">权限管理</button>
+            <button class="tab" data-tab="audit">审计日志</button>
+            <button class="tab" data-tab="tools">工具列表</button>
+        </nav>
+
+        <!-- 权限管理 -->
+        <section id="permissions" class="tab-content active">
+            <div class="card">
+                <h2>默认权限</h2>
+                <div class="default-mode">
+                    <label>全局默认：</label>
+                    <select id="defaultMode">
+                        <option value="Allow">Allow (允许)</option>
+                        <option value="Deny">Deny (拒绝)</option>
+                        <option value="Ask" selected>Ask (询问)</option>
+                    </select>
+                    <button id="saveDefault" class="btn btn-primary">保存</button>
+                    <button id="resetAll" class="btn btn-danger">重置全部</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>工具规则</h2>
+                <div class="rule-form">
+                    <select id="toolSelect">
+                        <option value="">-- 选择工具 --</option>
+                    </select>
+                    <input type="text" id="customTool" placeholder="或输入自定义工具名">
+                    <select id="rulePermission">
+                        <option value="Allow">Allow</option>
+                        <option value="Deny">Deny</option>
+                        <option value="Ask">Ask</option>
+                    </select>
+                    <input type="text" id="ruleNote" placeholder="备注（可选）">
+                    <button id="addRule" class="btn btn-success">添加规则</button>
+                </div>
+
+                <table id="rulesTable">
+                    <thead>
+                        <tr>
+                            <th>工具</th>
+                            <th>权限</th>
+                            <th>备注</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rulesBody">
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 审计日志 -->
+        <section id="audit" class="tab-content">
+            <div class="card">
+                <h2>审计统计</h2>
+                <div id="auditStats" class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-value" id="statTotal">0</span>
+                        <span class="stat-label">总计</span>
+                    </div>
+                    <div class="stat-item allow">
+                        <span class="stat-value" id="statAllowed">0</span>
+                        <span class="stat-label">允许</span>
+                    </div>
+                    <div class="stat-item deny">
+                        <span class="stat-value" id="statDenied">0</span>
+                        <span class="stat-label">拒绝</span>
+                    </div>
+                    <div class="stat-item ask">
+                        <span class="stat-value" id="statAsked">0</span>
+                        <span class="stat-label">询问</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>最近日志</h2>
+                <div class="toolbar">
+                    <button id="refreshAudit" class="btn">刷新</button>
+                    <button id="clearAudit" class="btn btn-danger">清空日志</button>
+                </div>
+                <table id="auditTable">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>工具</th>
+                            <th>决策</th>
+                            <th>规则</th>
+                            <th>上下文</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditBody">
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 工具列表 -->
+        <section id="tools" class="tab-content">
+            <div class="card">
+                <h2>已知工具</h2>
+                <table id="toolsTable">
+                    <thead>
+                        <tr>
+                            <th>工具名称</th>
+                            <th>描述</th>
+                        </tr>
+                    </thead>
+                    <tbody id="toolsBody">
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer>
+            <p>Coomi-Android Security &copy; 2026</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

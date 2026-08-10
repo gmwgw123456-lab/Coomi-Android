@@ -373,6 +373,7 @@ dependencies = [
  "anyhow",
  "axum",
  "clap",
+ "dirs",
  "regex",
  "serde",
  "serde_json",
