@@ -37,6 +37,16 @@ jobs:
           cd apps/coomi-rs
           cargo build --release --target aarch64-linux-android
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install web dependencies
+        run: |
+          cd apps/web
+          npm ci
+
       - name: Build APK
         run: |
           echo "coomi.signing.storePassword=123456" >> local.properties
