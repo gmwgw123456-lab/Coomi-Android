@@ -191,10 +191,17 @@ def coomiWebArchive = file("src/main/assets/web.zip")
 def coomiNativeDir = file("src/main/jniLibs/arm64-v8a")
 def coomiNativeBinary = new File(coomiRustRoot,
     "target/${coomiRustTarget}/release/coomi")
+// 跨平台检测：Windows 使用 windows-x86_64 + .cmd/.exe，Linux/macOS 使用对应平台目录无扩展名
+def isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
+def ndkPrebuilt = isWindows ? "windows-x86_64" : (System.getProperty("os.name").toLowerCase().contains("mac") ?
+    (System.getProperty("os.arch").toLowerCase().contains("aarch64") ? "darwin-aarch64" : "darwin-x86_64") :
+    "linux-x86_64")
+def toolExt = isWindows ? ".cmd" : ""
+def binExt = isWindows ? ".exe" : ""
 def coomiNdkToolchain = new File(android.sdkDirectory,
-    "ndk/${android.ndkVersion}/toolchains/llvm/prebuilt/windows-x86_64/bin")
+    "ndk/${android.ndkVersion}/toolchains/llvm/prebuilt/${ndkPrebuilt}/bin")
 def coomiAndroidLinker = new File(coomiNdkToolchain,
-    "aarch64-linux-android${android.defaultConfig.minSdkVersion.apiLevel}-clang.cmd")
+    "aarch64-linux-android${android.defaultConfig.minSdkVersion.apiLevel}-clang${toolExt}")
 
 tasks.register("installCoomiRustAndroidTarget", Exec) {
     group = "coomi build"
@@ -206,7 +213,7 @@ tasks.register("buildCoomiWeb", Exec) {
     group = "coomi build"
     description = "Build the Vue frontend served by coomi-rs."
     workingDir coomiWebRoot
-    commandLine "npm.cmd", "run", "build"
+    commandLine "npm", "run", "build"
     inputs.files(fileTree(coomiWebRoot) {
         include "src/**", "public/**", "*.json", "*.ts", "*.js", "*.html"
         exclude "node_modules/**", "dist/**"
@@ -239,8 +246,8 @@ tasks.register("buildCoomiRustAndroid", Exec) {
         "--target", coomiRustTarget, "-p", "coomi-ui", "--bin", "coomi"
     environment "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER", coomiAndroidLinker.absolutePath
     environment "CC_aarch64_linux_android", coomiAndroidLinker.absolutePath
-    environment "AR_aarch64_linux_android", new File(coomiNdkToolchain, "llvm-ar.exe").absolutePath
-    environment "RANLIB_aarch64_linux_android", new File(coomiNdkToolchain, "llvm-ranlib.exe").absolutePath
+    environment "AR_aarch64_linux_android", new File(coomiNdkToolchain, "llvm-ar${binExt}").absolutePath
+    environment "RANLIB_aarch64_linux_android", new File(coomiNdkToolchain, "llvm-ranlib${binExt}").absolutePath
     inputs.files(fileTree(coomiRustRoot) {
         include "**/src/**", "**/Cargo.toml", "Cargo.lock"
         exclude "target/**"
