@@ -16,13 +16,13 @@ jobs:
 
       - name: Setup Rust with Android target
         run: |
-          rustup default stable
+          cd apps/coomi-rs
           rustup target add aarch64-linux-android
           rustup component add rust-std --target aarch64-linux-android
-          rustup show
           rustup target list --installed
 
       - name: Setup Android NDK
+        id: setup-ndk
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r26d
