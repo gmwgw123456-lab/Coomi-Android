@@ -14,12 +14,13 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android
-
-      - name: Install Rust target
-        run: rustup target add aarch64-linux-android
+      - name: Setup Rust with Android target
+        run: |
+          rustup default stable
+          rustup target add aarch64-linux-android
+          rustup component add rust-std --target aarch64-linux-android
+          rustup show
+          rustup target list --installed
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
