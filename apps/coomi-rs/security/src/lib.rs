@@ -26,6 +26,8 @@ pub use permission::ToolRuleSet;
 
 pub use permission::PermissionManager;
 pub use permission::KNOWN_TOOLS;
+pub use permission::permission_api_routes;
+pub use permission::permission_routes;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 pub enum AccessMode {

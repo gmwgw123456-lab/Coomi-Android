@@ -23,6 +23,7 @@ use coomi_engine::AgentEvent;
 use coomi_engine::AgentObserver;
 use coomi_engine::ApprovalHandler;
 use coomi_engine::FileTransferRequest;
+use coomi_security::permission_api_routes;
 use coomi_engine::InputQueue;
 use coomi_engine::LoopStatus;
 use coomi_engine::PlanStepStatus;
@@ -315,6 +316,17 @@ pub async fn serve(
     })?;
 
     let permission = Arc::new(RwLock::new(load_permission_mode(&home)));
+
+    // Agent Permission Manager：rules.json / audit.log 存放在 <home>/permissions/。
+    // 路由（/permissions /rules /audit /tools /default）merge 进主引擎，WebView 前端
+    // 与本地浏览器均可直接访问管理 API。
+    let perm_dir = home.join("permissions");
+    fs::create_dir_all(&perm_dir)?;
+    let pm = coomi_security::PermissionManager::new(
+        perm_dir.join("rules.json"),
+        perm_dir.join("audit.log"),
+    );
+
     let state = AppState {
         home,
         cwd,
@@ -381,7 +393,10 @@ pub async fn serve(
                 .allow_headers([header::CONTENT_TYPE, header::ACCEPT, header::AUTHORIZATION]),
         )
         .layer(axum::middleware::from_fn_with_state(state.clone(), auth_layer))
-        .with_state(state);
+        .with_state(state)
+        // Agent Permission Manager 管理 API（/permissions /rules /audit /tools /default）。
+        // 两边 with_state 后同为 Router<()>，可直接 merge；未匹配路径回落到上面的静态文件 fallback。
+        .merge(permission_api_routes(pm));
 
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", port)).await?;
     println!("Coomi Rust bridge {BRIDGE_VERSION} listening on http://127.0.0.1:{port}");

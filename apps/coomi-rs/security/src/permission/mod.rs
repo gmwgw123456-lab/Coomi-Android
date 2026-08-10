@@ -19,5 +19,5 @@ pub use rules::{ToolPermission, ToolRule, ToolRuleSet};
 pub use manager::{PermissionManager, KNOWN_TOOLS};
 
 pub use api::*;
-pub use router::permission_routes;
+pub use router::{permission_api_routes, permission_routes};
 pub use serve::{serve, serve_default};
