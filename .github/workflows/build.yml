@@ -18,6 +18,9 @@ jobs:
         with:
           targets: aarch64-linux-android
 
+      - name: Install Rust target
+        run: rustup target add aarch64-linux-android
+
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
         with:
