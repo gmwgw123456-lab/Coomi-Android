@@ -50,11 +50,14 @@ public class CoomiLauncherActivity extends Activity {
     private Button mNotificationButton;
     private Button mBatteryButton;
     private Button mRootButton;
+    private Button mShizukuButton;
     private Button mContinueButton;
 
     private Handler mHandler = new Handler(Looper.getMainLooper());
     private RootAccessController mRootAccessController;
+    private ShizukuAccessController mShizukuAccessController;
     private boolean mRootCheckInFlight = false;
+    private boolean mShizukuCheckInFlight = false;
     private boolean mPermissionsDone = false;
     private boolean mContinuePersisted = false;
     private boolean mSettingsMode = false;
@@ -71,8 +74,11 @@ public class CoomiLauncherActivity extends Activity {
         mNotificationButton = findViewById(R.id.btn_notification_permission);
         mBatteryButton = findViewById(R.id.btn_battery_permission);
         mRootButton = findViewById(R.id.btn_root_permission);
+        mShizukuButton = findViewById(R.id.btn_shizuku_permission);
         mContinueButton = findViewById(R.id.btn_continue);
         mRootAccessController = new RootAccessController();
+        mShizukuAccessController = new ShizukuAccessController();
+        mShizukuAccessController.setStateListener(this::updateShizukuButton);
 
         mContinuePersisted = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
             .getBoolean(PREF_CONTINUE, false);
@@ -82,6 +88,7 @@ public class CoomiLauncherActivity extends Activity {
         mNotificationButton.setOnClickListener(v -> openNotificationSettings());
         mBatteryButton.setOnClickListener(v -> requestBatteryExemption());
         mRootButton.setOnClickListener(v -> checkRootPermission());
+        mShizukuButton.setOnClickListener(v -> requestShizukuPermission());
         mContinueButton.setOnClickListener(v -> {
             mPermissionsDone = true;
             getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
@@ -103,7 +110,7 @@ public class CoomiLauncherActivity extends Activity {
         super.onResume();
         if (mSettingsMode) {
             showWelcomePhase();
-            refreshPermissionStatusDelayed();
+            updatePermissionStatus();
             return;
         }
         if (mPermissionsDone || mContinuePersisted) {
@@ -112,7 +119,7 @@ public class CoomiLauncherActivity extends Activity {
             return;
         }
         showWelcomePhase();
-        refreshPermissionStatusDelayed();
+        updatePermissionStatus();
     }
 
     @Override
@@ -120,6 +127,7 @@ public class CoomiLauncherActivity extends Activity {
         super.onDestroy();
         mHandler.removeCallbacksAndMessages(null);
         if (mRootAccessController != null) mRootAccessController.cancel();
+        if (mShizukuAccessController != null) mShizukuAccessController.close();
     }
 
     // ── Phase display ──
@@ -166,55 +174,18 @@ public class CoomiLauncherActivity extends Activity {
     }
 
     private void requestBatteryExemption() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return;
-        if (isXiaomi()) {
-            // MIUI 上 ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS 只打开列表页且不生效，
-            // 直接进「忽略电池优化」设置页，让用户手动把 Coomi 设为「无限制」。
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             try {
-                Intent intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+                Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                intent.setData(Uri.parse("package:" + getPackageName()));
                 startActivityForResult(intent, REQUEST_CODE_BATTERY);
-                android.widget.Toast.makeText(
-                    this,
-                    "请在列表中找到 Coomi，将省电策略设为「无限制」",
-                    android.widget.Toast.LENGTH_LONG
-                ).show();
             } catch (Exception e) {
-                Logger.logError(LOG_TAG, "Battery exemption settings failed: " + e.getMessage());
+                Logger.logError(LOG_TAG, "Battery exemption request failed: " + e.getMessage());
             }
-            return;
-        }
-        try {
-            Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-            intent.setData(Uri.parse("package:" + getPackageName()));
-            startActivityForResult(intent, REQUEST_CODE_BATTERY);
-        } catch (Exception e) {
-            Logger.logError(LOG_TAG, "Battery exemption request failed: " + e.getMessage());
         }
     }
 
-    /** MIUI / Redmi 检测：小米系设备用独立的电池设置路径。 */
-    private boolean isXiaomi() {
-        String manufacturer = android.os.Build.MANUFACTURER == null ? "" : android.os.Build.MANUFACTURER.toLowerCase();
-        if (manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco")) {
-            return true;
-        }
-        try {
-            Class<?> clazz = Class.forName("android.os.SystemProperties");
-            java.lang.reflect.Method method = clazz.getMethod("get", String.class);
-            String miui = (String) method.invoke(null, "ro.miui.ui.version.name");
-            return miui != null && !miui.trim().isEmpty();
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /** 双查：立即刷新 + 800ms 后延迟再查（部分厂商授权页返回后状态位更新有延迟）。 */
-    private void refreshPermissionStatusDelayed() {
-        updatePermissionStatus();
-        mHandler.postDelayed(this::updatePermissionStatus, 800);
-    }
-
-    /** Root 权限检查（可选）：调用 RootAccessController 执行 su -c id 探测授权状态。 */
+    /** Root is an optional capability check and never gates bootstrap installation. */
     private void checkRootPermission() {
         if (mRootCheckInFlight || mRootAccessController == null) return;
         mRootCheckInFlight = true;
@@ -231,6 +202,10 @@ public class CoomiLauncherActivity extends Activity {
                     mRootButton.setText(R.string.coomi_authorized);
                     mRootButton.setEnabled(false);
                     break;
+                case UNAVAILABLE:
+                    mRootButton.setText(R.string.coomi_root_unavailable);
+                    mRootButton.setEnabled(true);
+                    break;
                 case DENIED:
                 case TIMEOUT:
                 case ERROR:
@@ -238,12 +213,56 @@ public class CoomiLauncherActivity extends Activity {
                     mRootButton.setText(R.string.coomi_root_retry);
                     mRootButton.setEnabled(true);
                     break;
-                case UNAVAILABLE:
-                    mRootButton.setText(R.string.coomi_root_unavailable);
-                    mRootButton.setEnabled(true);
-                    break;
             }
         });
+    }
+
+    private void requestShizukuPermission() {
+        if (mShizukuCheckInFlight || mShizukuAccessController == null) return;
+        mShizukuCheckInFlight = true;
+        mShizukuButton.setEnabled(false);
+        mShizukuButton.setText(R.string.coomi_shizuku_checking);
+        mShizukuAccessController.request(result -> {
+            if (isFinishing()
+                || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && isDestroyed())) {
+                return;
+            }
+            mShizukuCheckInFlight = false;
+            updateShizukuButton(result);
+        });
+    }
+
+    private void updateShizukuButton(ShizukuAccessController.Result result) {
+        if (mShizukuButton == null || result == null) return;
+        if (mShizukuCheckInFlight && result.status != ShizukuAccessController.Status.GRANTED) {
+            mShizukuButton.setEnabled(false);
+            mShizukuButton.setText(R.string.coomi_shizuku_checking);
+            return;
+        }
+        switch (result.status) {
+            case GRANTED:
+                mShizukuButton.setText(R.string.coomi_authorized);
+                mShizukuButton.setEnabled(false);
+                break;
+            case REQUESTABLE:
+                mShizukuButton.setText(R.string.coomi_shizuku_grant);
+                mShizukuButton.setEnabled(true);
+                break;
+            case DENIED:
+                mShizukuButton.setText(R.string.coomi_shizuku_retry);
+                mShizukuButton.setEnabled(true);
+                break;
+            case NOT_RUNNING:
+                mShizukuButton.setText(R.string.coomi_shizuku_not_running);
+                mShizukuButton.setEnabled(true);
+                break;
+            case UNAVAILABLE:
+            case ERROR:
+            default:
+                mShizukuButton.setText(R.string.coomi_shizuku_unavailable);
+                mShizukuButton.setEnabled(true);
+                break;
+        }
     }
 
     private void updatePermissionStatus() {
@@ -257,6 +276,10 @@ public class CoomiLauncherActivity extends Activity {
         mBatteryButton.setEnabled(!battOk);
         mBatteryButton.setText(battOk ? R.string.coomi_granted : R.string.coomi_allow);
 
+        if (mShizukuAccessController != null) {
+            updateShizukuButton(mShizukuAccessController.getStatus());
+        }
+
         // 演示包不为权限拦人：这两个开关只影响引擎常驻，而演示包没有引擎。
         mContinueButton.setEnabled(CoomiDemo.isEnabled() || (notifOk && battOk));
     }
@@ -265,7 +288,7 @@ public class CoomiLauncherActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE_NOTIFICATION || requestCode == REQUEST_CODE_BATTERY) {
-            refreshPermissionStatusDelayed();
+            updatePermissionStatus();
         }
     }
 
@@ -314,12 +337,11 @@ public class CoomiLauncherActivity extends Activity {
             return;
         }
 
-        // 主界面路由：按「启动首页」设置决定进控制台还是直接进对话。
-        Logger.logInfo(LOG_TAG, "All ready, routing to "
-            + (CoomiHomePreference.isChatHome(this) ? "chat" : "dashboard"));
+        // 控制台是 app 的主界面：打开 app 先进控制台（引擎状态 + 各功能入口），
+        // 从控制台再进入对话，符合安卓用户「回到主界面」的交互习惯。
+        Logger.logInfo(LOG_TAG, "All ready, routing to dashboard");
         mStatusText.setText(R.string.coomi_starting);
-        Intent intent = new Intent(this, CoomiHomePreference.isChatHome(this)
-            ? com.termux.app.CoomiActivity.class : CoomiDashboardActivity.class);
+        Intent intent = new Intent(this, CoomiDashboardActivity.class);
         startActivity(intent);
         finish();
     }
