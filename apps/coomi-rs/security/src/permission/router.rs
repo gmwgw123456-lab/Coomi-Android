@@ -17,7 +17,7 @@ pub fn permission_api_routes(pm: PermissionManager) -> Router {
         // 规则管理
         .route("/rules", get(api::get_rules))
         .route("/rules", post(api::set_rule))
-        .route("/rules/:tool", delete(api::remove_rule))
+        .route("/rules/{tool}", delete(api::remove_rule))
         // 默认权限
         .route("/default", post(api::set_default_permission))
         // 审计日志
